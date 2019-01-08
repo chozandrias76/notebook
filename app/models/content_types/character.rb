@@ -50,7 +50,7 @@ class Character < ApplicationRecord
   end
 
   def self.content_name
-    'NPCs'
+    'character'
   end
 
   def self.color
