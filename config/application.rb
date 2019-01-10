@@ -25,5 +25,15 @@ module Notebook
 
     # Use sidekiq to process jobs
     config.active_job.queue_adapter = :sidekiq
+
+    aws_config = Rails.application.config_for(:aws)
+    config.paperclip_defaults = {
+      storage: :s3,
+      s3_credentials: aws_config,
+      bucket: aws_config['s3_bucket_name'],
+      preserve_files: true,
+      s3_host_name: "s3-#{aws_config["s3_region"]}.amazonaws.com",
+      s3_protocol: :https
+    }
   end
 end

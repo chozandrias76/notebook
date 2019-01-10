@@ -89,17 +89,6 @@ Rails.application.configure do
     :enable_starttls_auto => true
   }
 
-  # S3 settings for Paperclip uploads
-  config.paperclip_defaults = {
-    storage: :s3,
-    s3_credentials: {
-      bucket:            ENV.fetch('S3_BUCKET_NAME',        'notebook-content-uploads'),
-      s3_region:         ENV.fetch('AWS_REGION',            'us-east-1'),
-      access_key_id:     ENV.fetch('AWS_ACCESS_KEY_ID'),
-      secret_access_key: ENV.fetch('AWS_SECRET_ACCESS_KEY')
-    }
-  }
-
   # Set production Stripe API key
   Stripe.api_key = ENV['STRIPE_API_KEY']
   config.stripe_publishable_key = ENV['STRIPE_PUBLISHABLE_KEY']
