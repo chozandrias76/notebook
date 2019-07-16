@@ -1,0 +1,23 @@
+<%= content_for :full_width_page_header do %>
+  <%= render partial: 'graphics/components/graphic_name_bar', locals: { graphic: @graphic } %>
+  <%= render partial: 'graphics/components/autosave_bar', locals: { graphic: @graphic } %>
+
+  <div class="row">
+    <div class="col s12 m8 l8 offset-l1">
+      <div id="editor" class="editable"><%= @graphic.body.try(:html_safe) || 'This graphic is blank.' %></div>
+    </div>
+    <div class="col l2 m4 smart-sidebar">
+      <%= render partial: 'graphics/components/smart_sidebar', locals: { graphic: @graphic } %>
+
+      <%= link_to edit_graphic_path(@graphic) do %>
+        <div class="card <%= Graphic.color %>">
+          <div class="card-content">
+            <span class="card-title white-text">
+              Edit this graphic
+            </span>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  </div>
+<% end %>

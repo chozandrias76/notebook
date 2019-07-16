@@ -1,0 +1,18 @@
+<div class="graphic-name-bar">
+  <div class="row teal lighten-1 white-text fixed">
+    <div class="col s12">
+      <% if defined?(f) %>
+        Editing
+        <div class="input-field inline">
+          <%=
+            f.text_field :title,
+              placeholder: 'Untitled graphic',
+              value: graphic.try(:name) || 'Untitled graphic',
+              class: 'white-text',
+              style: 'font-size: 150%; border-bottom: 1px solid white;'
+          %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>
