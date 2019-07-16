@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2019_01_03_211346) do
+ActiveRecord::Schema.define(version: 2019_07_16_025000) do
 
   create_table "api_keys", force: :cascade do |t|
     t.integer "user_id"
@@ -962,6 +962,17 @@ ActiveRecord::Schema.define(version: 2019_01_03_211346) do
     t.index ["id", "deleted_at"], name: "index_governments_on_id_and_deleted_at"
     t.index ["universe_id"], name: "index_governments_on_universe_id"
     t.index ["user_id"], name: "index_governments_on_user_id"
+  end
+
+  create_table "graphics", force: :cascade do |t|
+    t.string "name", null: false
+    t.integer "user_id"
+    t.datetime "deleted_at"
+    t.string "privacy"
+    t.text "alt_text"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id"], name: "index_graphics_on_user_id"
   end
 
   create_table "group_allyships", force: :cascade do |t|

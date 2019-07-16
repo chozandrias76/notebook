@@ -20,6 +20,7 @@ Rails.application.routes.draw do
 
     get '/scratchpad',      to: 'main#notes', as: :notes
     resources :documents
+    resources :graphics
 
     # Billing
     scope '/billing' do

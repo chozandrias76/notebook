@@ -127,6 +127,27 @@
           </ul>
         </div>
       </li>
+      <li class="bold waves-effect <%= 'active' if @sidenav_expansion == 'graphics' %>">
+        <a class="collapsible-header" tabindex="0">
+          Graphics
+          <i class="material-icons chevron">chevron_right</i>
+        </a>
+        <div class="collapsible-body" style="">
+          <ul>
+            <li>
+              <%= link_to main_app.graphics_path, class: 'waves-effect' do %>
+                <i class="material-icons <%= Graphic.color %>-text">
+                  <%# Grapic.icon %>
+                </i>
+                Grapics
+                <span class="badge">
+                  <%# @current_user_content['Graphic'].count %>
+                </span>
+              <% end %>
+            </li>
+          </ul>
+        </div>
+      </li>
       <li class="bold waves-effect <%= 'active' if @sidenav_expansion == 'my account' %>">
         <a class="collapsible-header" tabindex="0">
           My Account

@@ -51,6 +51,7 @@ class ApplicationController < ActionController::Base
     # We always want to cache Universes, even if they aren't explicitly turned on.
     @current_user_content = current_user.content(content_types: @activated_content_types + ['Universe'])
     @current_user_content['Document'] = current_user.documents
+    @current_user_content['Graphic'] = current_user.graphics
   end
 
   def cache_forums_unread_counts
