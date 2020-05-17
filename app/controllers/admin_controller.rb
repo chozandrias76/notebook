@@ -12,9 +12,7 @@ class AdminController < ApplicationController
     type_whitelist = Rails.application.config.content_types[:all].map(&:name)
 
     type = params[:type]
-    unless type_whitelist.include? type
-      return
-    end
+    return unless type_whitelist.include?(type)
 
     @content_type = type.constantize
     @relation_name = type.downcase.pluralize.to_sym
@@ -30,6 +28,12 @@ class AdminController < ApplicationController
   end
 
   def items
+  end
+
+  def images
+    @images = ImageUpload.offset(params[:page].to_i * 500).limit(500)
+              .includes(:content)
+              #.where.not(audited: true)
   end
 
   def masquerade
@@ -49,6 +53,10 @@ class AdminController < ApplicationController
       SubscriptionService.cancel_all_existing_subscriptions(user)
       UnsubscribedMailer.unsubscribed(user).deliver_now! if Rails.env.production?
     end
+  end
+
+  def promos
+    @codes = PageUnlockPromoCode.all.includes(:promotions)
   end
 
   private

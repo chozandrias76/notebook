@@ -15,6 +15,9 @@
     - :name: countries
       :label: Country
       :field_type: link
+    - :name:
+      :label: Tags
+      :field_type: tags
 :populace:
   :label: Populace
   :icon: group
@@ -62,9 +65,6 @@
 :gallery:
   :label: Gallery
   :icon: photo_library
-:changelog:
-  :label: Changelog
-  :icon: history
 :notes:
   :label: Notes
   :icon: edit

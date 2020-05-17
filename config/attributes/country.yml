@@ -12,6 +12,9 @@
     - :name: universe_id
       :label: Universe
       :field_type: universe
+    - :name:
+      :label: Tags
+      :field_type: tags
 :points_of_interest:
   :label: Points of interest
   :icon: location_on
@@ -75,9 +78,6 @@
 :gallery:
   :label: Gallery
   :icon: photo_library
-:changelog:
-  :label: Changelog
-  :icon: history
 :notes:
   :label: Notes
   :icon: edit

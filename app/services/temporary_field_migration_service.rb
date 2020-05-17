@@ -1,6 +1,16 @@
+# This service moves attribute values from being directly stored on the model (e.g. Character#age)
+# to the new-style of having values in an associated Attribute model.
+# Once all data has been moved over, we can remove these old columns and delete this service.
 class TemporaryFieldMigrationService < Service
+  def self.migrate_all_content_for_user(user)
+    user.content_list.each do |content|
+      self.migrate_fields_for_content(content, user)
+    end
+  end
+
   def self.migrate_fields_for_content(content_model, user)
     return unless content_model.present? && user.present?
+    return unless content_model.user == user
     return if content_model.persisted? && content_model.updated_at > 'September 1, 2018'.to_datetime
 
     # todo we might be able to do this in a single left outer join
@@ -44,7 +54,7 @@ class TemporaryFieldMigrationService < Service
             existing_value.disable_changelog_this_request = false
           else
             new_value = attribute_field.attribute_values.new(
-              user_id:     user.id,
+              user_id:     content_model.user.id,
               entity_type: content_model.class.name,
               entity_id:   content_model.id,
               value:       value_from_model,

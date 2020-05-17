@@ -11,6 +11,9 @@
     - :name: universe_id
       :label: Universe
       :field_type: universe
+    - :name:
+      :label: Tags
+      :field_type: tags
 :structure:
   :label: Structure
   :icon: view_list
@@ -112,9 +115,6 @@
 :gallery:
   :label: Gallery
   :icon: photo_library
-:changelog:
-  :label: Changelog
-  :icon: history
 :notes:
   :label: Notes
   :icon: edit

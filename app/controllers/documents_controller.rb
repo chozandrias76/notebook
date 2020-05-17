@@ -1,20 +1,24 @@
 class DocumentsController < ApplicationController
-  before_action :authenticate_user!
+  before_action :authenticate_user!, except: [:show]
 
   before_action :set_sidenav_expansion
   before_action :set_navbar_color
   before_action :set_navbar_actions, except: [:edit]
   before_action :set_footer_visibility, only: [:edit]
 
+  before_action :cache_linkable_content_for_each_content_type, only: [:edit]
+
+  layout 'editor', only: [:edit]
+
   def index
     @documents = current_user.documents.order('updated_at desc')
   end
 
   def show
-    @document = Document.find_by(id: params[:id], user_id: current_user.id)
+    @document = Document.find_by(id: params[:id])
 
-    unless @document.present? || @document.viewable_by?(current_user || User.new)
-      redirect_to(root_path, notice: "That document either doesn't exist or you don't have permission to view it.")
+    unless @document.present? && (current_user || User.new).can_read?(@document)
+      return redirect_to(root_path, notice: "That document either doesn't exist or you don't have permission to view it.")
     end
 
     @navbar_actions.unshift({
@@ -76,6 +80,7 @@ class DocumentsController < ApplicationController
 
   def set_navbar_actions
     @navbar_actions = []
+    return unless user_signed_in?
 
     if @current_user_content['Document'].present?
       @navbar_actions << {
@@ -86,7 +91,8 @@ class DocumentsController < ApplicationController
 
     @navbar_actions << {
       label: "New Document",
-      href: edit_document_path(:new)
+      href: edit_document_path(:new),
+      target: '_blank'
     }
   end
 
@@ -97,6 +103,6 @@ class DocumentsController < ApplicationController
   private
 
   def document_params
-    params.require(:document).permit(:title, :body, :deleted_at)
+    params.require(:document).permit(:title, :body, :deleted_at, :privacy)
   end
 end

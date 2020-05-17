@@ -1,6 +1,7 @@
 # rubocop:disable LineLength
 
 Rails.application.routes.draw do
+  get 'notice_dismissal/dismiss'
   get 'customization/content_types'
   post 'customization/toggle_content_type'
 
@@ -10,8 +11,13 @@ Rails.application.routes.draw do
     # get :characters, on: :member <...etc...>
     Rails.application.config.content_types[:all].each do |content_type|
       get content_type.name.downcase.pluralize.to_sym, on: :member
+      # todo page tags here
     end
   end
+  get '/@:username', to: 'users#show', as: :profile_by_username
+
+  resources :documents
+
   scope '/my' do
     get '/content',         to: 'main#dashboard', as: :dashboard
     get '/content/recent',  to: 'main#recent_content', as: :recent_content
@@ -19,6 +25,8 @@ Rails.application.routes.draw do
     get '/prompts',         to: 'main#prompts', as: :prompts
 
     get '/scratchpad',      to: 'main#notes', as: :notes
+
+    # Legacy routes: left intact so /my/documents/X URLs continue to work for everyone's bookmarks
     resources :documents
 
     # Billing
@@ -33,6 +41,9 @@ Rails.application.routes.draw do
 
       # This should probably be a DELETE
       get '/payment_method/delete', to: 'subscriptions#delete_payment_method', as: :delete_payment_method
+
+      # Promotional codes
+      post '/redeem', to: 'subscriptions#redeem_code'
     end
   end
   delete 'delete_my_account', to: 'users#delete_my_account'
@@ -82,18 +93,20 @@ Rails.application.routes.draw do
         get content_type.name.downcase.pluralize.to_sym, on: :member
       end
       get :changelog, on: :member
+      get '/tagged/:slug', action: :index, on: :collection, as: :page_tag
     end
     Rails.application.config.content_types[:all_non_universe].each do |content_type|
       # resources :characters do
       resources content_type.name.downcase.pluralize.to_sym do
         get :changelog, on: :member
+        get '/tagged/:slug', action: :index, on: :collection, as: :page_tag
       end
     end
 
     # Content attributes
-    resources :attributes, except: [:show]
-    resources :attribute_categories, except: [:show]
-    resources :attribute_fields, except: [:show]
+    put '/content/sort', to: 'content#api_sort'
+    resources :attribute_categories, only: [:create, :update, :destroy]
+    resources :attribute_fields,     only: [:create, :update, :destroy]
 
     # Image handling
     delete '/delete/image/:id', to: 'image_upload#delete', as: :image_deletion
@@ -113,6 +126,8 @@ Rails.application.routes.draw do
       get '/attributes', to: 'admin#attributes', as: :admin_attributes
       get '/masquerade/:user_id', to: 'admin#masquerade', as: :masquerade
       get '/unsubscribe', to: 'admin#unsubscribe', as: :mass_unsubscribe
+      get '/images', to: 'admin#images', as: :image_audit
+      get '/promos', to: 'admin#promos', as: :admin_promos
       post '/perform_unsubscribe', to: 'admin#perform_unsubscribe', as: :perform_unsubscribe
     end
     mount RailsAdmin::Engine => '/admin', as: 'rails_admin'

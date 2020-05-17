@@ -13,14 +13,17 @@ class ForumsLinkbuilderService < Service
       'Item': '/forum/items',
       'Job': '/forum/jobs',
       'Landmark': '/forum/landmarks',
-      'Language': '/forum/general-worldbuilding', # wtf did I do
+      'Language': '/forum/languages', # wtf did I do
       'Location': '/forum/locations',
       'Magic': '/forum/magic',
       'Planet': '/forum/planets',
       'Race': '/forum/races',
       'Religion': '/forum/religions',
       'Technology': '/forum/technology',
-      'Tradition': '/forum/traditions'
+      'Tradition': '/forum/traditions',
+      'School': '/forum/schools',
+      'Sport': '/forum/sports',
+      'Food': '/forum/food'
     }
   end
 

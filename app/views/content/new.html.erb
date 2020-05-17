@@ -1,7 +1,7 @@
 <div class="row">
   <%= form_for @content, multipart: true do |form| %>
     <div class="col s12 m9">
-      <div class="card">
+      <div class="hoverable card">
         <div class="card-image">
           <%= render partial: 'content/display/image_card_header' %>
           <%= render partial: 'content/display/floating_action_buttons', locals: { creating: true } %>
@@ -15,15 +15,6 @@
     </div>
   <% end %>
 </div>
-
-<script type="text/javascript">
-  $(document).ready(function(){
-    $('.slider').slider({
-      height: 200,
-      indicators: false
-    });
-  });
-</script>
 
 <% if @content.persisted? %>
   <%= render partial: 'content/share', locals: { shared_content: @content} %>

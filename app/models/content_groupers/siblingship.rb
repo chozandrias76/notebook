@@ -8,7 +8,11 @@ class Siblingship < ApplicationRecord
   belongs_to :sibling, class_name: 'Character'
 
   after_create do
-    self.reciprocate relation: :siblingships, parent_object_ref: :character, added_object_ref: :sibling
+    self.reciprocate(
+      relation:          :siblingships, 
+      parent_object_ref: :character, 
+      added_object_ref:  :sibling
+    )
   end
 
   after_destroy do
@@ -16,6 +20,6 @@ class Siblingship < ApplicationRecord
     this_object  = Character.find_by(id: self.character_id)
     other_object = Character.find_by(id: self.sibling_id)
 
-    other_object.siblings.delete(this_object) unless other_object.nil?
+    other_object.siblings.delete(this_object) if other_object.present?
   end
 end

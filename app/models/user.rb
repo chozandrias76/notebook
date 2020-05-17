@@ -11,13 +11,20 @@ class User < ApplicationRecord
   include HasContent
   include Authority::UserAbilities
 
-  validates_uniqueness_of :username, allow_nil: true, allow_blank: true
+  validates :username, 
+    uniqueness: { case_sensitive: false },
+    allow_nil: true,
+    allow_blank: true,
+    length: { maximum: 40 },
+    format: /\A[A-Za-z0-9\-_\$\+\!\*]+\z/
 
-  has_many :subscriptions,                dependent: :destroy
+  has_many :subscriptions, dependent: :destroy
   has_many :billing_plans, through: :subscriptions
   def on_premium_plan?
     BillingPlan::PREMIUM_IDS.include?(self.selected_billing_plan_id)
   end
+  has_many :promotions
+
 
   has_many :image_uploads
 
@@ -30,10 +37,15 @@ class User < ApplicationRecord
 
   has_many :votes,                        dependent: :destroy
   has_many :raffle_entries,               dependent: :destroy
+
   has_many :content_change_events,        dependent: :destroy
+  has_many :page_tags,                    dependent: :destroy
+
   has_many :user_content_type_activators, dependent: :destroy
 
   has_many :api_keys,                     dependent: :destroy
+
+  has_many :notice_dismissals,            dependent: :destroy
 
   def contributable_universes
     @user_contributable_universes ||= begin
@@ -71,9 +83,12 @@ class User < ApplicationRecord
     end
   end
 
-  #def linkable_universes
-    #todo
-  #end
+  def linkable_universes
+    my_universe_ids = universes.pluck(:id)
+    contributable_universe_ids = contributable_universes.pluck(:id)
+
+    Universe.where(id: my_universe_ids + contributable_universe_ids)
+  end
 
   has_many :documents, dependent: :destroy
 
@@ -81,6 +96,8 @@ class User < ApplicationRecord
   after_create :initialize_referral_code
   after_create :initialize_secure_code
   after_create :initialize_content_type_activators
+  # TODO we should do this, but we need to figure out how to make it fast first
+  # after_create :initialize_categories_and_fields
 
   def createable_content_types
     Rails.application.config.content_types[:all].select { |c| can_create? c }
@@ -117,6 +134,7 @@ class User < ApplicationRecord
     "https://www.gravatar.com/avatar/#{email_md5}?d=identicon&s=#{size}".html_safe
   end
 
+  # TODO these (3) can probably all be scopes on the related object, no?
   def active_subscriptions
     subscriptions
       .where('start_date < ?', Time.now)
@@ -126,6 +144,14 @@ class User < ApplicationRecord
   def active_billing_plans
     billing_plan_ids = active_subscriptions.pluck(:billing_plan_id)
     BillingPlan.where(id: billing_plan_ids).uniq
+  end
+
+  def active_promotions
+    promotions.active
+  end
+
+  def active_promo_codes
+    PageUnlockPromoCode.where(id: active_promotions.pluck(:page_unlock_promo_code_id))
   end
 
   def initialize_stripe_customer
@@ -186,6 +212,14 @@ class User < ApplicationRecord
     return nil unless found_key.present?
 
     found_key.user
+  end
+
+  def profile_url
+    if self.username.present?
+      Rails.application.routes.url_helpers.profile_by_username_path(username: self.username)
+    else
+      Rails.application.routes.url_helpers.user_path(id: self.id)
+    end
   end
 
   private

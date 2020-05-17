@@ -1,19 +1,16 @@
 class ContentController < ApplicationController
-  # todo before_action :load_content to set @content
-  before_action :authenticate_user!, only: [:index, :new, :create, :edit, :update, :destroy, :deleted, :attributes]
+  before_action :authenticate_user!, except: [:show, :changelog, :api_sort]
 
-  # Todo removing this will speed up page loads significantly. We need to figure out how to properly migrate all
-  # old content to the new attributes styling.
   before_action :migrate_old_style_field_values, only: [:show, :edit]
 
-  before_action :populate_linkable_content_for_each_content_type, only: [:new, :edit]
+  before_action :cache_linkable_content_for_each_content_type, only: [:new, :edit]
 
   before_action :set_attributes_content_type, only: [:attributes]
 
-  before_action :set_navbar_color
-  before_action :set_general_navbar_actions, except: [:deleted, :show, :changelog]
+  before_action :set_navbar_color, except: [:api_sort]
+  before_action :set_general_navbar_actions, except: [:deleted, :show, :changelog, :api_sort]
   before_action :set_specific_navbar_actions, only: [:show, :changelog]
-  before_action :set_sidenav_expansion
+  before_action :set_sidenav_expansion, except: [:api_sort]
 
   def index
     @content_type_class = content_type_from_controller(self.class)
@@ -23,20 +20,35 @@ class ContentController < ApplicationController
     @content_type_class.attribute_categories(current_user)
 
     if @universe_scope.present? && @content_type_class != Universe
-      @content = @universe_scope.send(pluralized_content_name)
+      @content = @universe_scope.send(pluralized_content_name).includes(:page_tags, :image_uploads)
+
+      @show_scope_notice = true
     else
       @content = (
-        current_user.send(pluralized_content_name) +
-        current_user.send("contributable_#{pluralized_content_name}")
+        current_user.send(pluralized_content_name).includes(:page_tags, :image_uploads) +
+        current_user.send("contributable_#{pluralized_content_name}").includes(:page_tags, :image_uploads)
       )
 
-      unless @content_type_class == Universe
+      if @content_type_class != Universe
         my_universe_ids = current_user.universes.pluck(:id)
         @content.concat(@content_type_class.where(universe_id: my_universe_ids))
       end
     end
 
-    @content = @content.to_a.flatten.uniq.sort_by(&:name)
+    @content = @content.to_a.flatten.uniq
+
+    # Filters
+    @page_tags = PageTag.where(
+      page_type: @content_type_class.name,
+      page_id:   @content.pluck(:id)
+    ).order(:tag)
+    if params.key?(:slug)
+      @filtered_page_tags = @page_tags.where(slug: params[:slug])
+      @content.select! { |content| @filtered_page_tags.pluck(:page_id).include?(content.id) }
+    end
+
+    @page_tags = @page_tags.uniq(&:tag)
+    @content = @content.sort_by(&:name)
 
     respond_to do |format|
       format.html { render 'content/index' }
@@ -46,9 +58,11 @@ class ContentController < ApplicationController
 
   def show
     content_type = content_type_from_controller(self.class)
-    return redirect_to root_path unless valid_content_types.map(&:name).include?(content_type.name)
+    return redirect_to(root_path) unless valid_content_types.map(&:name).include?(content_type.name)
+
     @content = content_type.find_by(id: params[:id])
     return redirect_to(root_path, notice: "You don't have permission to view that content.") if @content.nil?
+
     @serialized_content = ContentSerializer.new(@content)
 
     if user_signed_in?
@@ -94,12 +108,23 @@ class ContentController < ApplicationController
 
   def new
     @content = content_type_from_controller(self.class).new(user: current_user)
+    current_users_categories_and_fields = @content.class.attribute_categories(current_user)
+    if current_users_categories_and_fields.empty?
+      content_type_from_controller(self.class).create_default_attribute_categories(current_user)
+      current_users_categories_and_fields = @content.class.attribute_categories(current_user)
+    end
     @serialized_categories_and_fields = CategoriesAndFieldsSerializer.new(
-      @content.class.attribute_categories(current_user)
+      current_users_categories_and_fields
     )
+    @suggested_page_tags = (
+      current_user.page_tags.where(page_type: @content.class.name).pluck(:tag) +
+        PageTagService.suggested_tags_for(@content.class.name)
+    ).uniq
 
     # todo this is a good spot to audit to disable and see if create permissions are ok also
-    unless (current_user || User.new).can_create?(content_type_from_controller(self.class))
+    unless (current_user || User.new).can_create?(@content.class) \
+      || PermissionService.user_has_active_promotion_for_this_content_type(user: current_user, content_type: @content.class.name)
+
       return redirect_to(subscription_path, notice: "#{@content.class.name.pluralize} require a Premium subscription to create.")
     end
 
@@ -119,6 +144,10 @@ class ContentController < ApplicationController
     end
 
     @serialized_content = ContentSerializer.new(@content)
+    @suggested_page_tags = (
+      current_user.page_tags.where(page_type: content_type_class.name).pluck(:tag) +
+        PageTagService.suggested_tags_for(content_type_class.name)
+      ).uniq - @serialized_content.page_tags
 
     unless @content.updatable_by? current_user
       return redirect_to @content, notice: t(:no_do_permission)
@@ -131,25 +160,27 @@ class ContentController < ApplicationController
   end
 
   def create
-    content_type = content_type_from_controller self.class
+    content_type = content_type_from_controller(self.class)
     initialize_object
 
-    unless current_user.can_create?(content_type)
-      # todo set flash[:notice] about premium
-      return redirect_back fallback_location: root_path
+    unless current_user.can_create?(content_type) \
+      || PermissionService.user_has_active_promotion_for_this_content_type(user: current_user, content_type: content_type.name)
+      
+      return redirect_back(fallback_location: root_path, notice: "Creating this type of page requires an active Premium subscription.")
     end
 
-    #  Don't set name fields on content that doesn't have a name field
-    #todo abstract this (and the one in update) to a function
+    # Default names to untitled until one has been set
     unless [AttributeCategory, AttributeField, Attribute].map(&:name).include?(@content.class.name)
-      @content.name ||= @content.name_field_value || "Untitled"
+      @content.name ||= "Untitled #{content_type.name.downcase}"
     end
+
+    # Default owner to the current user
+    @content.user_id ||= current_user.id
 
     Mixpanel::Tracker.new(Rails.application.config.mixpanel_token).track(current_user.id, 'created content', {
       'content_type': content_type.name
     }) if Rails.env.production?
 
-    @content.user = current_user if @content.user_id.nil?
     if @content.update_attributes(content_params)
       cache_params = {}
       cache_params[:name]     = @content.name_field_value unless [AttributeCategory, AttributeField].include?(@content.class)
@@ -161,6 +192,8 @@ class ContentController < ApplicationController
       if params.key? 'image_uploads'
         upload_files params['image_uploads'], content_type.name, @content.id
       end
+
+      update_page_tags if @content.respond_to?(:page_tags)
 
       successful_response(content_creation_redirect_url, t(:create_success, model_name: @content.try(:name).presence || humanized_model_name))
     else
@@ -192,20 +225,21 @@ class ContentController < ApplicationController
       end
     end
 
+    update_page_tags if @content.respond_to?(:page_tags)
+
     if @content.user == current_user
       # todo this needs some extra validation probably to ensure each attribute is one associated with this page
       update_success = @content.update_attributes(content_params)
-
-      cache_params = {}
-      cache_params[:name]     = @content.name_field_value unless [AttributeCategory, AttributeField, Attribute].include?(@content.class)
-      cache_params[:universe] = @content.universe_field_value if self.respond_to?(:universe_id)
-
-      @content.update(cache_params) if cache_params.any? && update_success
     else
       # Exclude fields only the real owner can edit
       #todo move field list somewhere when it grows
       update_success = @content.update_attributes(content_params.except(:universe_id))
     end
+
+    cache_params = {}
+    cache_params[:name]     = @content.name_field_value unless [AttributeCategory, AttributeField, Attribute].include?(@content.class)
+    cache_params[:universe] = @content.universe_field_value if self.respond_to?(:universe_id)
+    @content.update(cache_params) if cache_params.any? && update_success
 
     if update_success
       successful_response(@content, t(:update_success, model_name: @content.try(:name).presence || humanized_model_name))
@@ -295,9 +329,63 @@ class ContentController < ApplicationController
   end
 
   def attributes
+    @attribute_categories = @content_type_class.attribute_categories(current_user, show_hidden: true).order(:position)
+  end
+
+  def api_sort
+    sort_params = params.permit(:content_id, :intended_position, :sortable_class)
+    sortable_class = sort_params[:sortable_class].constantize # todo audit
+    return unless sortable_class
+
+    content = sortable_class.find_by(id: sort_params[:content_id].to_i)
+    return unless content.present?
+    return unless content.user_id == current_user.id
+    return unless content.respond_to?(:position)
+
+    # Ugh not another one of these backfills
+    if content.position.nil?
+      content_to_order_first = if content.is_a?(AttributeCategory)
+        content_type_class = content.entity_type.titleize.constantize
+        content_type_class.attribute_categories(current_user, show_hidden: true)
+      elsif content.is_a?(AttributeField)
+        content.attribute_category.attribute_fields
+      end
+
+      ActiveRecord::Base.transaction do
+        content_to_order_first.each.with_index do |content_to_order, index|
+          content_to_order.update_column(:position, 1 + index)
+        end
+      end
+    end
+
+    if content.reload && content.insert_at(1 + sort_params[:intended_position].to_i)
+      render json: 200
+    else
+      render json: 500
+    end
   end
 
   private
+
+  def update_page_tags
+    tag_list = page_tag_params.fetch(:page_tags, "").split(',,,|||,,,')
+    current_tags = @content.page_tags.pluck(:tag)
+
+    tags_to_add    = tag_list - current_tags
+    tags_to_remove = current_tags - tag_list
+
+    tags_to_add.each do |tag|
+      @content.page_tags.find_or_create_by(
+        tag:  tag,
+        slug: PageTagService.slug_for(tag),
+        user: @content.user
+      )
+    end
+
+    tags_to_remove.each do |tag|
+      @content.page_tags.find_by(tag: tag).destroy
+    end
+  end
 
   def render_json(content)
     render json: JSON.pretty_generate({
@@ -326,29 +414,6 @@ class ContentController < ApplicationController
     TemporaryFieldMigrationService.migrate_fields_for_content(content, current_user) if content.present?
   end
 
-  def populate_linkable_content_for_each_content_type
-    linkable_classes = Rails.application.config.content_types[:all].map(&:name) & current_user.user_content_type_activators.pluck(:content_type)
-    linkable_classes -= ["Universe"]
-
-    @linkables_cache = {}
-    linkable_classes.each do |class_name|
-      # class_name = "Character"
-
-      @linkables_cache[class_name] = current_user.send("linkable_#{class_name.downcase.pluralize}")
-        .in_universe(@universe_scope)
-
-      if @content.present? && @content.persisted?
-        @linkables_cache[class_name] = @linkables_cache[class_name]
-          .in_universe(@content.universe)
-          .reject { |content| content.class.name == class_name && content.id == @content.id }
-      end
-
-      @linkables_cache[class_name] = @linkables_cache[class_name].sort_by(&:name)
-        .map { |c| [c.name, c.id] }
-        .compact
-    end
-  end
-
   def valid_content_types
     Rails.application.config.content_types[:all]
   end
@@ -367,6 +432,15 @@ class ContentController < ApplicationController
       .to_sym
 
     params.require(content_class).permit(content_param_list + [:deleted_at])
+  end
+
+  def page_tag_params
+    content_class = content_type_from_controller(self.class)
+      .name
+      .downcase
+      .to_sym
+
+    params.require(content_class).permit(:page_tags)
   end
 
   def content_deletion_redirect_url
@@ -423,6 +497,8 @@ class ContentController < ApplicationController
   # For index, new, edit
   def set_general_navbar_actions
     content_type = @content_type_class || content_type_from_controller(self.class)
+    return if [AttributeCategory, AttributeField, Attribute].include?(content_type)
+    
     @navbar_actions = []
 
     if @current_user_content
@@ -435,7 +511,8 @@ class ContentController < ApplicationController
     @navbar_actions << {
       label: "New #{content_type.name.downcase}",
       href: main_app.new_polymorphic_path(content_type)
-    }
+    } if user_signed_in? && current_user.can_create?(content_type) \
+    || PermissionService.user_has_active_promotion_for_this_content_type(user: current_user, content_type: content_type.name)
 
     discussions_link = ForumsLinkbuilderService.worldbuilding_url(content_type)
     if discussions_link.present?
@@ -463,11 +540,11 @@ class ContentController < ApplicationController
           href: main_app.polymorphic_path(content_type)
         }
       end
-      #
-      # @navbar_actions << {
-      #   label: "New #{content_type.name.downcase}",
-      #   href: main_app.new_polymorphic_path(content_type)
-      # }
+
+      @navbar_actions << {
+        label: "New #{content_type.name.downcase}",
+        href: main_app.new_polymorphic_path(content_type)
+      }
     end
   end
 

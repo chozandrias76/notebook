@@ -9,6 +9,12 @@
       :label: Description
     - :name: genre
       :label: Genre
+    - :name:
+      :label: Tags
+      :field_type: tags
+    - :name:
+      :label: Tags
+      :field_type: tags
 :history:
   :label: History
   :icon: date_range
@@ -36,9 +42,6 @@
 :gallery:
   :label: Gallery
   :icon: photo_library
-:changelog:
-  :label: Changelog
-  :icon: history
 :contributors:
   :label: Contributors
   :icon: group_add

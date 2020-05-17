@@ -45,6 +45,18 @@ Rails.application.configure do
   Stripe.api_key = "sk_test_v37uWbseyPct6PpsfjTa3y1l"
   config.stripe_publishable_key = 'pk_test_eXI4iyJ2gR9UOGJyJERvDlHF'
 
+  # Paperclip config for image uploads
+  config.paperclip_defaults = {
+    storage: :s3,
+    s3_host_name: "s3-#{ENV['S3_REGION']}.amazonaws.com",
+    s3_credentials: {
+      bucket:            ENV.fetch('S3_BUCKET_NAME',        'notebook-content-uploads'),
+      s3_region:         ENV.fetch('S3_REGION',            'us-west-2'),
+      access_key_id:     ENV.fetch('AWS_ACCESS_KEY_ID',     ''),
+      secret_access_key: ENV.fetch('AWS_SECRET_ACCESS_KEY', '')
+    }
+  }
+
   Bullet.enable = true
   # Bullet.sentry = true
   Bullet.alert = true

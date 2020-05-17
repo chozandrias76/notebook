@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2019_01_03_211346) do
+ActiveRecord::Schema.define(version: 2019_07_07_182422) do
 
   create_table "api_keys", force: :cascade do |t|
     t.integer "user_id"
@@ -45,6 +45,7 @@ ActiveRecord::Schema.define(version: 2019_01_03_211346) do
     t.datetime "updated_at"
     t.boolean "hidden"
     t.datetime "deleted_at"
+    t.integer "position"
     t.index ["entity_type"], name: "index_attribute_categories_on_entity_type"
     t.index ["name"], name: "index_attribute_categories_on_name"
     t.index ["user_id"], name: "index_attribute_categories_on_user_id"
@@ -63,6 +64,7 @@ ActiveRecord::Schema.define(version: 2019_01_03_211346) do
     t.boolean "hidden"
     t.datetime "deleted_at"
     t.string "old_column_source"
+    t.integer "position"
     t.index ["attribute_category_id", "deleted_at"], name: "index_attribute_fields_on_attribute_category_id_and_deleted_at"
     t.index ["attribute_category_id", "label", "old_column_source", "field_type"], name: "attribute_fields_aci_label_ocs_ft"
     t.index ["attribute_category_id", "label", "old_column_source", "user_id", "field_type"], name: "attribute_fields_aci_label_ocs_ui_ft"
@@ -845,6 +847,19 @@ ActiveRecord::Schema.define(version: 2019_01_03_211346) do
     t.index ["user_id"], name: "index_floras_on_user_id"
   end
 
+  create_table "foods", force: :cascade do |t|
+    t.string "name"
+    t.integer "user_id"
+    t.integer "universe_id"
+    t.datetime "deleted_at"
+    t.string "privacy"
+    t.string "page_type", default: "Food"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["universe_id"], name: "index_foods_on_universe_id"
+    t.index ["user_id"], name: "index_foods_on_user_id"
+  end
+
   create_table "friendly_id_slugs", force: :cascade do |t|
     t.string "slug", null: false
     t.integer "sluggable_id", null: false
@@ -1072,7 +1087,7 @@ ActiveRecord::Schema.define(version: 2019_01_03_211346) do
     t.datetime "updated_at", null: false
     t.string "src_file_name"
     t.string "src_content_type"
-    t.integer "src_file_size"
+    t.bigint "src_file_size"
     t.datetime "src_updated_at"
     t.index ["content_type", "content_id"], name: "index_image_uploads_on_content_type_and_content_id"
     t.index ["user_id"], name: "index_image_uploads_on_user_id"
@@ -1411,6 +1426,14 @@ ActiveRecord::Schema.define(version: 2019_01_03_211346) do
     t.integer "notable_city_id"
   end
 
+  create_table "notice_dismissals", force: :cascade do |t|
+    t.integer "user_id"
+    t.integer "notice_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id"], name: "index_notice_dismissals_on_user_id"
+  end
+
   create_table "officeships", force: :cascade do |t|
     t.integer "user_id"
     t.integer "group_id"
@@ -1430,6 +1453,31 @@ ActiveRecord::Schema.define(version: 2019_01_03_211346) do
     t.boolean "favorite"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+  end
+
+  create_table "page_tags", force: :cascade do |t|
+    t.string "page_type"
+    t.integer "page_id"
+    t.string "tag"
+    t.string "slug"
+    t.string "color"
+    t.integer "user_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["page_type", "page_id"], name: "index_page_tags_on_page_type_and_page_id"
+    t.index ["user_id", "page_type"], name: "index_page_tags_on_user_id_and_page_type"
+    t.index ["user_id"], name: "index_page_tags_on_user_id"
+  end
+
+  create_table "page_unlock_promo_codes", force: :cascade do |t|
+    t.string "code"
+    t.string "page_types"
+    t.integer "uses_remaining"
+    t.integer "days_active"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "internal_description"
+    t.string "description"
   end
 
   create_table "past_ownerships", force: :cascade do |t|
@@ -1604,6 +1652,17 @@ ActiveRecord::Schema.define(version: 2019_01_03_211346) do
     t.index ["user_id"], name: "index_planets_on_user_id"
   end
 
+  create_table "promotions", force: :cascade do |t|
+    t.integer "user_id"
+    t.integer "page_unlock_promo_code_id"
+    t.datetime "expires_at"
+    t.string "content_type"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["page_unlock_promo_code_id"], name: "index_promotions_on_page_unlock_promo_code_id"
+    t.index ["user_id"], name: "index_promotions_on_user_id"
+  end
+
   create_table "races", force: :cascade do |t|
     t.string "name"
     t.string "description"
@@ -1775,6 +1834,19 @@ ActiveRecord::Schema.define(version: 2019_01_03_211346) do
     t.index ["user_id"], name: "index_scenes_on_user_id"
   end
 
+  create_table "schools", force: :cascade do |t|
+    t.string "name"
+    t.integer "user_id"
+    t.integer "universe_id"
+    t.datetime "deleted_at"
+    t.string "privacy"
+    t.string "page_type", default: "School"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["universe_id"], name: "index_schools_on_universe_id"
+    t.index ["user_id"], name: "index_schools_on_user_id"
+  end
+
   create_table "sessions", force: :cascade do |t|
     t.string "username", null: false
     t.string "password", null: false
@@ -1794,6 +1866,19 @@ ActiveRecord::Schema.define(version: 2019_01_03_211346) do
     t.integer "user_id"
     t.integer "group_id"
     t.integer "sistergroup_id"
+  end
+
+  create_table "sports", force: :cascade do |t|
+    t.string "name"
+    t.integer "user_id"
+    t.integer "universe_id"
+    t.datetime "deleted_at"
+    t.string "privacy"
+    t.string "page_type", default: "Sport"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["universe_id"], name: "index_sports_on_universe_id"
+    t.index ["user_id"], name: "index_sports_on_user_id"
   end
 
   create_table "stripe_event_logs", force: :cascade do |t|

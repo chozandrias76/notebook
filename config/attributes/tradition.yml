@@ -14,6 +14,9 @@
       :label: Type of tradition
     - :name: alternate_names
       :label: Alternate names
+    - :name:
+      :label: Tags
+      :field_type: tags
 :observance:
   :label: Observance
   :icon: track_changes
@@ -57,9 +60,6 @@
 :gallery:
   :label: Gallery
   :icon: photo_library
-:changelog:
-  :label: Changelog
-  :icon: history
 :notes:
   :label: Notes
   :icon: edit
